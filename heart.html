@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我想你了</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: #fff; 
+            height: 100vh; 
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        /* 爱心窗口样式 */
+        .heart-item {
+            position: absolute;
+            width: 60px;
+            height: 40px;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: darkred;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // 配置参数（和原Python代码对应）
+        const TIPS = ["我想你了"] * 14;
+        const BG_COLORS = [
+            "lightgreen", "lightblue", "lightpink", "lightyellow",
+            "lightcoral", "lightcyan", "lightgray", "lavender",
+            "lemonchiffon", "honeydew", "lavenderblush", "salmon"
+        ];
+        const WINDOW_COUNT = 80; // 适配手机，减少数量
+        const HEART_SCALE_RATIO = 0.85; // 爱心占屏幕比例
+        const WINDOW_SIZE = { width: 60, height: 40 };
+
+        // 缓动函数（和原代码一致）
+        function easeOutQuad(t) {
+            return 1 - (1 - t) * (1 - t);
+        }
+
+        // 生成爱心坐标（重构原Python的generate_fullscreen_heart_coords）
+        function generateHeartCoords() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const maxRadius = Math.min(screenWidth, screenHeight) * HEART_SCALE_RATIO / 2;
+            const baseScale = maxRadius / 16;
+            const coords = [];
+
+            for (let i = 0; i < WINDOW_COUNT; i++) {
+                const t = 2 * Math.PI * i / WINDOW_COUNT;
+                // 笛卡尔爱心方程
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                
+                // 缩放+平移到屏幕中心
+                const finalX = screenWidth / 2 + x * baseScale - WINDOW_SIZE.width / 2;
+                const finalY = screenHeight / 2 + y * baseScale - WINDOW_SIZE.height / 2;
+                
+                // 限制在屏幕内
+                const clampedX = Math.max(0, Math.min(finalX, screenWidth - WINDOW_SIZE.width));
+                const clampedY = Math.max(0, Math.min(finalY, screenHeight - WINDOW_SIZE.height));
+                
+                coords.push({ x: clampedX, y: clampedY });
+            }
+
+            // 按y升序、x升序排序（和原代码一致）
+            return coords.sort((a, b) => a.y - b.y || a.x - b.x);
+        }
+
+        // 创建单个爱心窗口（重构create_heart_window）
+        function createHeartItem(x, y) {
+            const item = document.createElement('div');
+            item.className = 'heart-item';
+            // 随机颜色和文字
+            const bgColor = BG_COLORS[Math.floor(Math.random() * BG_COLORS.length)];
+            const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+            
+            // 设置样式和位置
+            item.style.left = `${x}px`;
+            item.style.top = `${y}px`;
+            item.style.backgroundColor = bgColor;
+            item.innerText = tip;
+            
+            document.body.appendChild(item);
+
+            // 淡入动画（重构fade_in）
+            let alpha = 0;
+            const fadeIn = () => {
+                if (alpha < 0.98) {
+                    const easeStep = easeOutQuad(alpha) * 0.05 + 0.01;
+                    alpha = Math.min(alpha + easeStep, 0.98);
+                    item.style.opacity = alpha;
+                    requestAnimationFrame(fadeIn);
+                }
+            };
+            fadeIn();
+
+            return item;
+        }
+
+        // 依次创建爱心窗口（重构create_windows_along_heart）
+        function createAllHeartItems() {
+            const coords = generateHeartCoords();
+            let index = 0;
+
+            const createNext = () => {
+                if (index < coords.length) {
+                    const { x, y } = coords[index];
+                    createHeartItem(x, y);
+                    index++;
+                    // 每50ms创建一个（和原代码delay=50对应）
+                    setTimeout(createNext, 50);
+                } else {
+                    // 所有窗口创建完成后，8秒开始淡出
+                    setTimeout(fadeOutAllItems, 8000);
+                }
+            };
+            createNext();
+        }
+
+        // 淡出所有窗口（重构close_windows_smoothly）
+        function fadeOutAllItems() {
+            const items = document.querySelectorAll('.heart-item');
+            let index = 0;
+
+            const fadeOutNext = () => {
+                if (index < items.length) {
+                    const item = items[index];
+                    let alpha = parseFloat(item.style.opacity) || 0.98;
+                    
+                    const fadeOut = () => {
+                        if (alpha > 0) {
+                            const easeStep = easeOutQuad(alpha) * 0.04;
+                            alpha = Math.max(alpha - easeStep, 0);
+                            item.style.opacity = alpha;
+                            requestAnimationFrame(fadeOut);
+                        } else {
+                            item.remove();
+                            index++;
+                            setTimeout(fadeOutNext, 150);
+                        }
+                    };
+                    fadeOut();
+                }
+            };
+            fadeOutNext();
+        }
+
+        // 启动程序
+        window.onload = createAllHeartItems;
+        // 适配窗口大小变化
+        window.onresize = () => {
+            document.body.innerHTML = '';
+            createAllHeartItems();
+        };
+    </script>
+</body>
+</html>
